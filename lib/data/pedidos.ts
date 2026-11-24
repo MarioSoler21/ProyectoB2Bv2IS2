@@ -1,20 +1,12 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import type { EstadoPedido } from "@/lib/domain/pedido";
 
-export const FLUJO_ESTADOS = [
-  "pendiente",
-  "confirmado",
-  "en_preparacion",
-  "despachado",
-  "entregado",
-] as const;
-
-export type EstadoPedido = (typeof FLUJO_ESTADOS)[number] | "anulado";
-
-export function siguienteEstado(estado: EstadoPedido): EstadoPedido | null {
-  const idx = FLUJO_ESTADOS.indexOf(estado as (typeof FLUJO_ESTADOS)[number]);
-  if (idx === -1 || idx === FLUJO_ESTADOS.length - 1) return null;
-  return FLUJO_ESTADOS[idx + 1];
-}
+// Movidos al dominio; se re-exportan para no romper a quienes importan de acá.
+export {
+  FLUJO_ESTADOS,
+  siguienteEstado,
+  type EstadoPedido,
+} from "@/lib/domain/pedido";
 
 export type PedidoParaDespacho = {
   id: number;
