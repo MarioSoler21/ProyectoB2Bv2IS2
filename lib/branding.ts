@@ -1,8 +1,8 @@
 import type { CSSProperties } from "react";
 
 export const BRANDING_DEFAULTS = {
-  nombreApp: "Pedidos B2B",
-  subtituloApp: "Distribuidoras",
+  nombreApp: "Pedidly",
+  subtituloApp: "Pedidos B2B",
 } as const;
 
 export type TenantBranding = {

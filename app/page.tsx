@@ -9,10 +9,10 @@ export default function Home() {
       <BrandLogo />
       <div className="space-y-1">
         <h1 className="font-heading text-2xl font-semibold text-foreground">
-          Pedidos B2B
+          Pedidly
         </h1>
         <p className="text-sm text-muted-foreground">
-          Pedidos B2B multi-tenant para distribuidoras.
+          Pedidos B2B para distribuidoras.
         </p>
       </div>
       <Button asChild size="lg">

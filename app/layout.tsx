@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Pedidos B2B",
-  description: "Pedidos B2B para distribuidoras — multi-tenant",
+  title: "Pedidly",
+  description: "Pedidly: pedidos B2B para distribuidoras",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
