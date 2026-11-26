@@ -9,6 +9,7 @@ import { BrandLogo } from "@/components/brand-logo";
 import {
   brandingStyle,
   BRANDING_DEFAULTS,
+  toBranding,
   type TenantBranding,
 } from "@/lib/branding";
 import { cn } from "@/lib/utils";
@@ -25,6 +26,7 @@ const CAMPOS: { key: keyof Colores; name: string; label: string }[] = [
 
 export function BrandingSection({
   errors,
+  nombreEmpresa,
   nombreApp,
   subtituloApp,
   primario,
@@ -33,6 +35,8 @@ export function BrandingSection({
   logoUrl,
 }: {
   errors: Errores;
+  /** Se usa como nombre visible si el tenant deja vacío "Nombre de la app". */
+  nombreEmpresa: string;
   nombreApp: string | null;
   subtituloApp: string | null;
   primario: string | null;
@@ -51,16 +55,16 @@ export function BrandingSection({
   const set = (key: keyof Colores, value: string) =>
     setColores((c) => ({ ...c, [key]: value }));
 
-  const preview: TenantBranding = {
-    nombreEmpresa: "",
-    nombreApp: nombre.trim() || BRANDING_DEFAULTS.nombreApp,
-    subtituloApp: subtitulo.trim() || BRANDING_DEFAULTS.subtituloApp,
-    mensajePortal: null,
-    logoUrl,
-    colorPrimario: colores.primario || null,
-    colorSecundario: colores.secundario || null,
-    colorSidebar: colores.sidebar || null,
-  };
+  // Misma lógica de respaldo que el panel real (lib/branding.ts).
+  const preview: TenantBranding = toBranding({
+    nombre_empresa: nombreEmpresa,
+    nombre_app: nombre,
+    subtitulo_app: subtitulo,
+    logo_url: logoUrl,
+    color_primario: colores.primario,
+    color_secundario: colores.secundario,
+    color_sidebar: colores.sidebar,
+  });
 
   return (
     <div className="space-y-4">
@@ -69,7 +73,7 @@ export function BrandingSection({
           <Input
             id="nombre_app"
             name="nombre_app"
-            placeholder={BRANDING_DEFAULTS.nombreApp}
+            placeholder={nombreEmpresa || BRANDING_DEFAULTS.nombreApp}
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
           />

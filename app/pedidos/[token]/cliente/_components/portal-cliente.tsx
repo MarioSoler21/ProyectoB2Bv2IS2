@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { ConTecnologiaPedidly } from "@/components/logo-pedidly";
 import { useHidratado } from "@/hooks/use-local-storage";
 import type { PortalData } from "@/lib/data/portal";
 import type { FechaISO, PedidoNuevo } from "@/lib/portal/types";
@@ -117,6 +118,10 @@ export function PortalCliente({
           <EsqueletoArmado />
         )}
       </main>
+
+      <footer className="flex justify-center pb-8">
+        <ConTecnologiaPedidly />
+      </footer>
 
       <Carrito
         token={token}

@@ -20,16 +20,16 @@ export const CREDENCIALES_FAKE = {
 
 export const COOKIE_FAKE = "fake_session";
 
-/** Tenant 1 de supabase/seed.sql ("Distribuidora Uno"). */
+/** Tenant 1 (en el seed se llama "Distribuidora Uno"; en la base de desarrollo, DIBSA). */
 const SESION_FAKE: Session = {
   id: "1",
   slug: "distribuidora-uno",
-  nombreEmpresa: "Distribuidora Uno",
+  nombreEmpresa: "DIBSA",
   usuarioId: 1,
   usuarioNombre: "Admin Demo",
   rol: "admin",
   email: CREDENCIALES_FAKE.email,
-  negocios: [{ tenantId: "1", nombreEmpresa: "Distribuidora Uno", rol: "admin" }],
+  negocios: [{ tenantId: "1", nombreEmpresa: "DIBSA", rol: "admin" }],
 };
 
 export function sonCredencialesFake(email: string, password: string): boolean {

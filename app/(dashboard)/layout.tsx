@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { BrandLogo } from "@/components/brand-logo";
 import { DashboardNav } from "@/components/dashboard-nav";
+import { ConTecnologiaPedidly } from "@/components/logo-pedidly";
 import { MarcaDeAgua } from "@/components/marca-de-agua";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -118,6 +119,7 @@ function ContenidoLateral({
             Cerrar sesión
           </Button>
         </form>
+        <ConTecnologiaPedidly className="px-2 pt-1" />
       </div>
     </div>
   );

@@ -70,6 +70,7 @@ export function ConfigForm({ tenant }: { tenant: TenantRow }) {
         </div>
         <BrandingSection
           errors={errs}
+          nombreEmpresa={branding.nombreEmpresa}
           nombreApp={tenant.nombre_app}
           subtituloApp={tenant.subtitulo_app}
           primario={branding.colorPrimario}

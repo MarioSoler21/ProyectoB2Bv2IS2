@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { Toaster } from "@/components/ui/sonner";
+import { PRODUCTO } from "@/lib/branding";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Pedidly",
-  description: "Pedidly: pedidos B2B para distribuidoras",
+  title: { default: PRODUCTO.nombre, template: `%s · ${PRODUCTO.nombre}` },
+  description: `${PRODUCTO.nombre}: ${PRODUCTO.lema.toLowerCase()}`,
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

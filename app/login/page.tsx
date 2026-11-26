@@ -1,11 +1,10 @@
-import Image from "next/image";
 import { redirect } from "next/navigation";
 
-import appLogo from "@/app/icon.png";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CREDENCIALES_FAKE, FAKE_LOGIN_ENABLED } from "@/lib/auth/fake-login";
 import { getSession } from "@/lib/session";
-import { BRANDING_DEFAULTS } from "@/lib/branding";
+import { LogoPedidly } from "@/components/logo-pedidly";
+import { PRODUCTO } from "@/lib/branding";
 import { LoginForm } from "./login-form";
 
 export default async function LoginPage() {
@@ -20,21 +19,11 @@ export default async function LoginPage() {
         <ThemeToggle />
       </div>
       <div className="w-full max-w-sm space-y-6">
-        <div className="flex flex-col items-center gap-3 text-center">
-          <Image
-            src={appLogo}
-            alt=""
-            priority
-            className="size-16 rounded-2xl shadow-sm ring-1 ring-foreground/10"
-          />
-          <div>
-            <h1 className="font-heading text-lg font-semibold text-foreground">
-              {BRANDING_DEFAULTS.nombreApp}
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              {BRANDING_DEFAULTS.subtituloApp}
-            </p>
-          </div>
+        <div className="flex flex-col items-center gap-2 text-center">
+          <h1>
+            <LogoPedidly priority className="h-12" />
+          </h1>
+          <p className="text-sm text-muted-foreground">{PRODUCTO.lema}</p>
         </div>
         <LoginForm credencialesDemo={FAKE_LOGIN_ENABLED ? CREDENCIALES_FAKE : undefined} />
       </div>

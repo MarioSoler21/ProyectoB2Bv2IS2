@@ -1,7 +1,18 @@
 import type { CSSProperties } from "react";
 
+/**
+ * Identidad del producto (el SaaS). Es distinta de la marca de cada tenant:
+ * una distribuidora ve su propio logo y nombre en su panel y en su portal, y
+ * Pedidly aparece en el login, el inicio y como "con tecnología de".
+ */
+export const PRODUCTO = {
+  nombre: "Pedidly",
+  lema: "Pedidos B2B para distribuidoras",
+} as const;
+
+/** Lo que se muestra cuando el tenant no configuró su propia marca. */
 export const BRANDING_DEFAULTS = {
-  nombreApp: "Pedidly",
+  nombreApp: PRODUCTO.nombre,
   subtituloApp: "Pedidos B2B",
 } as const;
 
@@ -30,7 +41,9 @@ type BrandingRow = {
 export function toBranding(row: BrandingRow | null | undefined): TenantBranding {
   return {
     nombreEmpresa: row?.nombre_empresa ?? "",
-    nombreApp: row?.nombre_app?.trim() || BRANDING_DEFAULTS.nombreApp,
+    // La marca del tenant: su nombre de app, si no el de la empresa; Pedidly solo como último recurso.
+    nombreApp:
+      row?.nombre_app?.trim() || row?.nombre_empresa?.trim() || BRANDING_DEFAULTS.nombreApp,
     subtituloApp: row?.subtitulo_app?.trim() || BRANDING_DEFAULTS.subtituloApp,
     mensajePortal: row?.mensaje_portal?.trim() || null,
     logoUrl: row?.logo_url?.trim() || null,

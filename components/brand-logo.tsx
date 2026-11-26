@@ -1,12 +1,11 @@
-import { ImageIcon } from "lucide-react";
-
+import { IsotipoPedidly } from "@/components/logo-pedidly";
 import { cn } from "@/lib/utils";
 import { BRANDING_DEFAULTS } from "@/lib/branding";
 
 /**
- * Marca de la app. Si el tenant configuró un logo (logoUrl) se muestra ese;
- * si no, un cuadro placeholder. El wordmark usa el nombre/subtítulo del tenant
- * o los defaults.
+ * Marca del tenant. Si configuró un logo (logoUrl) se muestra ese; si no, el
+ * isotipo de Pedidly. El wordmark usa el nombre/subtítulo del tenant o los
+ * defaults del producto.
  */
 export function BrandLogo({
   withWordmark = false,
@@ -36,9 +35,7 @@ export function BrandLogo({
           className="h-9 w-auto max-w-28 shrink-0 rounded-md object-contain dark:bg-white dark:p-0.5"
         />
       ) : (
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground ring-1 ring-foreground/10">
-          <ImageIcon className="size-4.5" aria-hidden />
-        </div>
+        <IsotipoPedidly className="shrink-0" />
       )}
       {withWordmark && (
         <div className="leading-tight">

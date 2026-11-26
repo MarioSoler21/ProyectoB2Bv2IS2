@@ -14,7 +14,8 @@ type Props = { params: Promise<{ token: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { token } = await params;
   const cliente = await getClientePorToken(token);
-  return { title: cliente ? `Pedidos · ${cliente.tenantNombre}` : "Hacer pedido" };
+  // El portal lleva la marca del tenant: su título no usa el sufijo de Pedidly.
+  return { title: { absolute: cliente ? `Pedidos · ${cliente.tenantNombre}` : "Hacer pedido" } };
 }
 
 export default async function PortalClientePage({ params }: Props) {
