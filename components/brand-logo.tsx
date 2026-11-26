@@ -27,11 +27,13 @@ export function BrandLogo({
   return (
     <div className={cn("flex items-center gap-2.5", className)}>
       {logoUrl ? (
+        // Alto fijo y ancho libre: los logos suelen ser horizontales. En oscuro
+        // va sobre una placa clara para que no se pierdan las partes negras.
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={logoUrl}
           alt={label}
-          className="size-9 shrink-0 rounded-lg object-contain ring-1 ring-foreground/10"
+          className="h-9 w-auto max-w-28 shrink-0 rounded-md object-contain dark:bg-white dark:p-0.5"
         />
       ) : (
         <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground ring-1 ring-foreground/10">

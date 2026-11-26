@@ -17,7 +17,12 @@ import { loginAction, type LoginState } from "./actions";
 
 const initialState: LoginState = { ok: false, email: "" };
 
-export function LoginForm() {
+type Props = {
+  /** Credenciales del login de prueba; solo llegan en desarrollo local. */
+  credencialesDemo?: { email: string; password: string };
+};
+
+export function LoginForm({ credencialesDemo }: Props) {
   const [state, formAction, pending] = useActionState(
     loginAction,
     initialState,
@@ -50,6 +55,12 @@ export function LoginForm() {
             <Label htmlFor="password">Contraseña</Label>
             <Input id="password" name="password" type="password" required />
           </div>
+          {credencialesDemo && (
+            <p className="rounded-lg border border-dashed px-3 py-2 text-xs text-muted-foreground">
+              Modo prueba: <span className="font-mono">{credencialesDemo.email}</span> /{" "}
+              <span className="font-mono">{credencialesDemo.password}</span>
+            </p>
+          )}
           {state.error && (
             <p className="text-sm text-destructive">{state.error}</p>
           )}

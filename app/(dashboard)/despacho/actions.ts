@@ -1,44 +1,68 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+
+import {
+  anularPedido,
+  despacharPedidos,
+  ErrorDespacho,
+  guardarEdicion,
+  restaurarEstados,
+} from "@/lib/data/despacho";
+import type { EstadoPrevio, Resultado } from "@/lib/despacho/types";
+import {
+  edicionPedidoSchema,
+  estadosPreviosSchema,
+  idPedidoSchema,
+  idsPedidosSchema,
+} from "@/lib/despacho/validacion";
 import { getSession } from "@/lib/session";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { siguienteEstado, type EstadoPedido } from "@/lib/data/pedidos";
 
-/** Avanza un pedido al siguiente estado del flujo y deja rastro en pedido_historial. */
-export async function avanzarEstadoPedido(formData: FormData) {
-  const tenant = await getSession();
-  if (!tenant) throw new Error("No hay tenant activo");
+const RUTA = "/despacho";
 
-  const pedidoId = String(formData.get("pedidoId") ?? "");
-  const estadoActual = String(formData.get("estadoActual") ?? "") as EstadoPedido;
+type Autor = { tenantId: string; usuarioId: number };
+type Esquema<E> = {
+  safeParse: (valor: unknown) => { success: true; data: E } | { success: false };
+};
 
-  const nuevoEstado = siguienteEstado(estadoActual);
-  if (!nuevoEstado) return;
+/**
+ * Envuelve cada acción: exige sesión, valida la entrada con zod, revalida el
+ * tablero y traduce los errores a un mensaje para el usuario.
+ */
+async function ejecutar<E, T>(
+  entrada: unknown,
+  esquema: Esquema<E>,
+  accion: (autor: Autor, datos: E) => Promise<T>,
+): Promise<Resultado<T>> {
+  const sesion = await getSession();
+  if (!sesion) return { ok: false, error: "Tu sesión expiró. Vuelve a iniciar sesión." };
 
-  const supabase = createAdminClient();
+  const validado = esquema.safeParse(entrada);
+  if (!validado.success) return { ok: false, error: "Los datos enviados no son válidos." };
 
-  const timestamps: Record<string, string> = {};
-  if (nuevoEstado === "despachado") timestamps.despachado_at = new Date().toISOString();
-  if (nuevoEstado === "entregado") timestamps.entregado_at = new Date().toISOString();
+  try {
+    const datos = await accion({ tenantId: sesion.id, usuarioId: sesion.usuarioId }, validado.data);
+    revalidatePath(RUTA);
+    return { ok: true, datos };
+  } catch (error) {
+    if (error instanceof ErrorDespacho) return { ok: false, error: error.message };
+    console.error("[despacho] Falló una acción", error);
+    return { ok: false, error: "No pudimos guardar el cambio. Intenta de nuevo." };
+  }
+}
 
-  const { error: updateError } = await supabase
-    .from("pedidos")
-    .update({ estado: nuevoEstado, ...timestamps })
-    .eq("id", pedidoId)
-    .eq("tenant_id", tenant.id);
+export async function despachar(ids: unknown): Promise<Resultado<EstadoPrevio[]>> {
+  return ejecutar(ids, idsPedidosSchema, despacharPedidos);
+}
 
-  if (updateError) throw updateError;
+export async function deshacerDespacho(previos: unknown): Promise<Resultado> {
+  return ejecutar(previos, estadosPreviosSchema, restaurarEstados);
+}
 
-  const { error: historialError } = await supabase.from("pedido_historial").insert({
-    tenant_id: tenant.id,
-    pedido_id: pedidoId,
-    estado_anterior: estadoActual,
-    estado_nuevo: nuevoEstado,
-    comentario: "Actualizado desde el panel de despacho (demo)",
-  });
+export async function guardarPedido(edicion: unknown): Promise<Resultado> {
+  return ejecutar(edicion, edicionPedidoSchema, guardarEdicion);
+}
 
-  if (historialError) throw historialError;
-
-  revalidatePath("/despacho");
+export async function anular(id: unknown): Promise<Resultado> {
+  return ejecutar(id, idPedidoSchema, anularPedido);
 }

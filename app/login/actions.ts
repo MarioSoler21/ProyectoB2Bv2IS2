@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 
+import { iniciarSesionFake, sonCredencialesFake } from "@/lib/auth/fake-login";
 import { createClient } from "@/lib/supabase/server";
 
 export type LoginState = {
@@ -26,6 +27,11 @@ export async function loginAction(
 
   if (!email || !password) {
     return { ok: false, email, error: "Ingresá tu correo y contraseña." };
+  }
+
+  if (sonCredencialesFake(email, password)) {
+    await iniciarSesionFake();
+    redirect("/despacho");
   }
 
   const supabase = await createClient();

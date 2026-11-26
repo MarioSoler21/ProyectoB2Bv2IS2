@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getSesionFake } from "@/lib/auth/fake-login";
 
 /**
  * Sesion real de la app: usuario autenticado con Supabase Auth (correo +
@@ -30,6 +31,9 @@ export type Session = {
 const ACTIVE_TENANT_COOKIE = "active_tenant_id";
 
 export const getSession = cache(async (): Promise<Session | null> => {
+  const sesionFake = await getSesionFake();
+  if (sesionFake) return sesionFake;
+
   const supabase = await createClient();
   const {
     data: { user },

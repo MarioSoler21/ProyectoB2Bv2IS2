@@ -1,6 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { COOKIE_FAKE, FAKE_LOGIN_ENABLED } from "@/lib/auth/fake-login";
+
 /**
  * Refresca la sesion de Supabase Auth en cada request (necesario con el
  * patron de cookies de @supabase/ssr) antes de que llegue a Server
@@ -8,6 +10,9 @@ import { NextResponse, type NextRequest } from "next/server";
  */
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
+
+  // Con la sesión de prueba no hay JWT de Supabase que refrescar.
+  if (FAKE_LOGIN_ENABLED && request.cookies.has(COOKIE_FAKE)) return response;
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

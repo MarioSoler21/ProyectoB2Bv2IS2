@@ -1,10 +1,12 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { cerrarSesionFake } from "@/lib/auth/fake-login";
 import { createClient } from "@/lib/supabase/server";
 import { setActiveTenant } from "@/lib/session";
 
 export async function salirDelTenant() {
+  await cerrarSesionFake();
   const supabase = await createClient();
   await supabase.auth.signOut();
   redirect("/login");
