@@ -2,7 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { EstadoPedido } from "@/lib/data/pedidos";
 
 /**
- * A diferencia de getPedidosParaDespacho (lib/data/pedidos.ts), esto trae
+ * A diferencia de getTableroDespacho (lib/data/despacho.ts), esto trae
  * TODOS los pedidos del tenant sin filtrar por estado — para reportes,
  * dashboard y exportacion (PDF/CSV), donde interesa el historico completo.
  */

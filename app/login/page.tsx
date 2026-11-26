@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import appLogo from "@/app/icon.png";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { CREDENCIALES_FAKE, FAKE_LOGIN_ENABLED } from "@/lib/auth/fake-login";
 import { getSession } from "@/lib/session";
 import { BRANDING_DEFAULTS } from "@/lib/branding";
 import { LoginForm } from "./login-form";
@@ -35,7 +36,7 @@ export default async function LoginPage() {
             </p>
           </div>
         </div>
-        <LoginForm />
+        <LoginForm credencialesDemo={FAKE_LOGIN_ENABLED ? CREDENCIALES_FAKE : undefined} />
       </div>
     </main>
   );

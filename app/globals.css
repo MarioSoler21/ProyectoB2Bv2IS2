@@ -39,6 +39,14 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-success: var(--success);
+  --color-suggestion: var(--suggestion);
+  /* Despacho: hoy / vencido / origen manual / ruta. Los fondos suaves se
+     arman con opacidad (bg-today/15) para que sirvan en ambos temas. */
+  --color-today: var(--today);
+  --color-overdue: var(--overdue);
+  --color-manual: var(--manual);
+  --color-route: var(--route);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -81,6 +89,13 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  /* Estados de dominio: "ya está en el pedido" / pedido sugerido. */
+  --success: #15803d;
+  --suggestion: #7c3aed;
+  --today: #b45309;
+  --overdue: #b91c1c;
+  --manual: #c2410c;
+  --route: #1d4ed8;
 }
 
 .dark {
@@ -115,6 +130,12 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  --success: #4ade80;
+  --suggestion: #d8b4fe;
+  --today: #fbbf24;
+  --overdue: #f87171;
+  --manual: #fb923c;
+  --route: #60a5fa;
 }
 
 @layer base {
