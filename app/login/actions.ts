@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 
-import { iniciarSesionFake, sonCredencialesFake } from "@/lib/auth/fake-login";
+import { iniciarSesionFake, rolDeCredencialesFake } from "@/lib/auth/fake-login";
 import { createClient } from "@/lib/supabase/server";
 
 export type LoginState = {
@@ -29,9 +29,11 @@ export async function loginAction(
     return { ok: false, email, error: "Ingresá tu correo y contraseña." };
   }
 
-  if (sonCredencialesFake(email, password)) {
-    await iniciarSesionFake();
-    redirect("/despacho");
+  const rolFake = rolDeCredencialesFake(email, password);
+  if (rolFake) {
+    await iniciarSesionFake(rolFake);
+    // /login manda a cada rol a su sección principal.
+    redirect("/login");
   }
 
   const supabase = await createClient();
@@ -40,5 +42,5 @@ export async function loginAction(
     return { ok: false, email, error: "Correo o contraseña incorrectos." };
   }
 
-  redirect("/despacho");
+  redirect("/login");
 }

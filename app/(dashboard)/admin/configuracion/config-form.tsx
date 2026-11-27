@@ -6,18 +6,16 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { PLANES } from "@/lib/validation/admin";
 import { PLAN_LABEL } from "@/lib/admin-labels";
 import { toBranding } from "@/lib/branding";
 import type { TenantRow } from "@/lib/data/admin";
 import type { FormState } from "@/lib/validation/admin";
-import { Field, SelectField } from "../_components/entity-dialog";
+import { Field } from "../_components/entity-dialog";
 import { SubmitButton } from "../_components/submit-button";
 import { BrandingSection } from "./branding-colors";
 import { actualizarConfiguracion } from "./actions";
 
 const initial: FormState = { ok: false };
-const PLAN_OPTS = PLANES.map((p) => ({ value: p, label: PLAN_LABEL[p] }));
 
 export function ConfigForm({ tenant }: { tenant: TenantRow }) {
   const [state, formAction] = useActionState(actualizarConfiguracion, initial);
@@ -42,21 +40,19 @@ export function ConfigForm({ tenant }: { tenant: TenantRow }) {
             required
           />
         </Field>
-        <Field
-          label="Slug"
-          name="slug"
-          errors={errs}
-          hint="Identificador corto para URLs/subdominios. Solo minúsculas, números y guiones."
-        >
-          <Input id="slug" name="slug" defaultValue={tenant.slug} required />
-        </Field>
-        <SelectField
-          name="plan"
-          label="Plan"
-          errors={errs}
-          options={PLAN_OPTS}
-          defaultValue={tenant.plan}
-        />
+        <dl className="grid grid-cols-2 gap-3 rounded-lg border bg-muted/40 p-3 text-sm">
+          <div>
+            <dt className="text-xs text-muted-foreground">Plan</dt>
+            <dd className="font-medium">{PLAN_LABEL[tenant.plan] ?? tenant.plan}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted-foreground">Identificador de la cuenta</dt>
+            <dd className="font-mono text-xs">{tenant.slug}</dd>
+          </div>
+          <p className="col-span-2 text-xs text-muted-foreground">
+            Para cambiar de plan, escríbele al equipo de Pedidly.
+          </p>
+        </dl>
       </section>
 
       <Separator />
@@ -83,7 +79,7 @@ export function ConfigForm({ tenant }: { tenant: TenantRow }) {
           label="Mensaje del portal de cliente"
           name="mensaje_portal"
           errors={errs}
-          hint="Lo ve el cliente en /pedidos/[token]/cliente antes de armar el pedido."
+          hint="Lo ven tus clientes al abrir su link de pedidos, antes de armar el pedido."
         >
           <Textarea
             id="mensaje_portal"

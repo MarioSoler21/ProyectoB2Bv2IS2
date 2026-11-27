@@ -7,16 +7,22 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { agruparPorDia } from "@/lib/despacho/agrupacion";
 import {
-  estaDespachado,
+  ESTADOS_AVANCE,
+  MINUTOS_PARA_DESHACER,
+  puedeAvanzar,
+  RESULTADO,
+  type EstadoAvance,
+} from "@/lib/despacho/ciclo";
+import {
   filtrarPedidos,
   FILTROS_INICIALES,
   hayFiltrosActivos,
   type Filtros,
 } from "@/lib/despacho/filtros";
-import type { EstadoPrevio, PedidoDespacho, TableroDespacho as Datos } from "@/lib/despacho/types";
+import type { PedidoDespacho, TableroDespacho as Datos } from "@/lib/despacho/types";
 import { contar } from "@/lib/portal/formato";
 
-import { despachar, deshacerDespacho } from "../actions";
+import { avanzarEstado, deshacerEstado } from "../actions";
 import { BarraFiltros } from "./barra-filtros";
 import { BarraSeleccion } from "./barra-seleccion";
 import { DialogoPedido } from "./dialogo-pedido";
@@ -25,11 +31,16 @@ import { TarjetaDespacho } from "./tarjeta-despacho";
 
 type Props = Datos & { empresa: string };
 
-/** Tiempo para arrepentirse de un despacho antes de que el aviso desaparezca. */
+/**
+ * Cuánto queda a la vista el aviso con "Deshacer". El servidor acepta deshacer
+ * hasta MINUTOS_PARA_DESHACER después; pasado eso, lo rechaza.
+ */
 const DURACION_DESHACER_MS = 10_000;
 
-function marcarDespachados(pedidos: PedidoDespacho[], ids: ReadonlySet<number>): PedidoDespacho[] {
-  return pedidos.map((p) => (ids.has(p.id) && !estaDespachado(p.estado) ? { ...p, estado: "despachado" } : p));
+type Cambio = { ids: ReadonlySet<number>; hacia: EstadoAvance };
+
+function aplicarCambio(pedidos: PedidoDespacho[], { ids, hacia }: Cambio): PedidoDespacho[] {
+  return pedidos.map((p) => (ids.has(p.id) && puedeAvanzar(p.estado, hacia) ? { ...p, estado: hacia } : p));
 }
 
 /**
@@ -50,8 +61,8 @@ export function TableroDespacho({
   const [seleccion, setSeleccion] = useState<ReadonlySet<number>>(new Set());
   const [abiertoId, setAbiertoId] = useState<number | null>(null);
   const [ocupado, iniciar] = useTransition();
-  // Se ven despachados al instante; el servidor confirma (o revierte) después.
-  const [vista, marcarOptimista] = useOptimistic(pedidos, marcarDespachados);
+  // El cambio de estado se ve al instante; el servidor confirma (o revierte) después.
+  const [vista, aplicarOptimista] = useOptimistic(pedidos, aplicarCambio);
 
   const productosPorId = useMemo(
     () => new Map([...catalogo, ...productosRetirados].map((p) => [p.id, p])),
@@ -64,6 +75,9 @@ export function TableroDespacho({
   const grupos = useMemo(() => agruparPorDia(filtrados, hoy, vista), [filtrados, hoy, vista]);
 
   const seleccionados = vista.filter((p) => seleccion.has(p.id));
+  const elegiblesSeleccion = Object.fromEntries(
+    ESTADOS_AVANCE.map((hacia) => [hacia, seleccionados.filter((p) => puedeAvanzar(p.estado, hacia)).length]),
+  ) as Record<EstadoAvance, number>;
   const pedidoAbierto = vista.find((p) => p.id === abiertoId) ?? null;
 
   function alternarSeleccion(id: number, marcado: boolean) {
@@ -75,34 +89,41 @@ export function TableroDespacho({
     });
   }
 
-  function deshacer(previos: EstadoPrevio[]) {
+  function deshacer(ids: number[], estado: EstadoAvance) {
     iniciar(async () => {
-      const resultado = await deshacerDespacho(previos);
-      if (resultado.ok) toast.success("Despacho deshecho");
+      const resultado = await deshacerEstado({ ids, estado });
+      if (resultado.ok) toast.success("Cambio deshecho");
       else toast.error(resultado.error);
     });
   }
 
-  function despacharPedidos(ids: number[]) {
-    const pendientes = vista.filter((p) => ids.includes(p.id) && !estaDespachado(p.estado));
-    if (pendientes.length === 0) return;
+  function avanzar(ids: readonly number[], hacia: EstadoAvance) {
+    const elegibles = vista.filter((p) => ids.includes(p.id) && puedeAvanzar(p.estado, hacia));
+    if (elegibles.length === 0) return;
 
     iniciar(async () => {
-      marcarOptimista(new Set(pendientes.map((p) => p.id)));
-      const resultado = await despachar(pendientes.map((p) => p.id));
+      aplicarOptimista({ ids: new Set(elegibles.map((p) => p.id)), hacia });
+      const resultado = await avanzarEstado({ ids: elegibles.map((p) => p.id), hacia });
       if (!resultado.ok) {
         toast.error(resultado.error);
         return;
       }
       setSeleccion(new Set());
-      const previos = resultado.datos;
+      const cambiados = resultado.datos;
+      if (cambiados.length === 0) {
+        toast.info("Esos pedidos ya habían cambiado de estado.");
+        return;
+      }
+      const { uno, varios } = RESULTADO[hacia];
+      const primero = elegibles.find((p) => p.id === cambiados[0]);
       const mensaje =
-        previos.length === 1
-          ? `Pedido #${pendientes[0].numero} despachado`
-          : `${contar(previos.length, "pedido")} despachados`;
+        cambiados.length === 1 && primero
+          ? `Pedido #${primero.numero} ${uno}`
+          : `${contar(cambiados.length, "pedido")} ${varios}`;
       toast.success(mensaje, {
+        description: `Puedes deshacerlo durante ${MINUTOS_PARA_DESHACER} minutos.`,
         duration: DURACION_DESHACER_MS,
-        action: { label: "Deshacer", onClick: () => deshacer(previos) },
+        action: { label: "Deshacer", onClick: () => deshacer(cambiados, hacia) },
       });
     });
   }
@@ -163,7 +184,8 @@ export function TableroDespacho({
                         seleccionado={seleccion.has(pedido.id)}
                         onSeleccionar={(marcado) => alternarSeleccion(pedido.id, marcado)}
                         onAbrir={() => setAbiertoId(pedido.id)}
-                        onDespachar={() => despacharPedidos([pedido.id])}
+                        ocupado={ocupado}
+                        onAvanzar={(hacia) => avanzar([pedido.id], hacia)}
                       />
                     ))}
                   </div>
@@ -175,9 +197,9 @@ export function TableroDespacho({
 
         <BarraSeleccion
           cantidad={seleccionados.length}
-          pendientes={seleccionados.filter((p) => !estaDespachado(p.estado)).length}
+          elegibles={elegiblesSeleccion}
           ocupado={ocupado}
-          onDespachar={() => despacharPedidos(seleccionados.map((p) => p.id))}
+          onAvanzar={(hacia) => avanzar([...seleccion], hacia)}
           onPdf={() => descargarPdf(seleccionados)}
           onLimpiar={() => setSeleccion(new Set())}
         />

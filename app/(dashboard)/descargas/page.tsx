@@ -1,9 +1,9 @@
-import { getSession } from "@/lib/session";
+import { exigirPermiso } from "@/lib/auth/acceso";
 import { getPedidosReporte } from "@/lib/data/reportes";
 import { DescargasClient } from "./descargas-client";
 
 export default async function DescargasPage() {
-  const tenant = await getSession();
+  const tenant = await exigirPermiso("descargar_reportes");
   const pedidos = tenant ? await getPedidosReporte(tenant.id) : [];
 
   return (

@@ -19,7 +19,7 @@ const initialState: LoginState = { ok: false, email: "" };
 
 type Props = {
   /** Credenciales del login de prueba; solo llegan en desarrollo local. */
-  credencialesDemo?: { email: string; password: string };
+  credencialesDemo?: { emails: string[]; password: string };
 };
 
 export function LoginForm({ credencialesDemo }: Props) {
@@ -57,8 +57,14 @@ export function LoginForm({ credencialesDemo }: Props) {
           </div>
           {credencialesDemo && (
             <p className="rounded-lg border border-dashed px-3 py-2 text-xs text-muted-foreground">
-              Modo prueba: <span className="font-mono">{credencialesDemo.email}</span> /{" "}
-              <span className="font-mono">{credencialesDemo.password}</span>
+              Modo prueba ({" "}
+              {credencialesDemo.emails.map((email, i) => (
+                <span key={email}>
+                  {i > 0 && ", "}
+                  <span className="font-mono">{email}</span>
+                </span>
+              ))}{" "}
+              ) / <span className="font-mono">{credencialesDemo.password}</span>
             </p>
           )}
           {state.error && (

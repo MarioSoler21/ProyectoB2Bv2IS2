@@ -23,7 +23,7 @@ export function UsuarioDialog({ usuario }: { usuario?: UsuarioRow }) {
     <EntityDialog
       trigger={
         editar ? (
-          <Button variant="ghost" size="icon-sm" aria-label="Editar">
+          <Button variant="ghost" size="icon-sm" aria-label={`Editar ${usuario.nombre}`}>
             <Pencil className="size-4" />
           </Button>
         ) : (
@@ -62,12 +62,49 @@ export function UsuarioDialog({ usuario }: { usuario?: UsuarioRow }) {
             />
           </Field>
           <Field
-            label="PIN"
+            label="Correo"
+            name="email"
+            errors={errors}
+            hint="Con este correo entra al panel. Obligatorio para admin, vendedor y despacho."
+          >
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="off"
+              defaultValue={usuario?.email ?? ""}
+            />
+          </Field>
+          <Field
+            label={editar && usuario.auth_user_id ? "Nueva contraseña" : "Contraseña inicial"}
+            name="password"
+            errors={errors}
+            hint={
+              editar && usuario.auth_user_id
+                ? "Déjala vacía para no cambiarla."
+                : "Mínimo 8 caracteres. Entrégasela a la persona por un medio seguro."
+            }
+          >
+            <Input id="password" name="password" type="password" autoComplete="new-password" />
+          </Field>
+          <Field
+            label={usuario?.tiene_pin ? "Nuevo PIN" : "PIN"}
             name="pin"
             errors={errors}
-            hint="Solo aplica al rol operador de bodega."
+            hint={
+              usuario?.tiene_pin
+                ? "Ya tiene un PIN. Déjalo vacío para mantenerlo."
+                : "De 4 a 6 dígitos, para el operador de bodega. Se guarda cifrado."
+            }
           >
-            <Input id="pin" name="pin" defaultValue={usuario?.pin ?? ""} />
+            <Input
+              id="pin"
+              name="pin"
+              type="password"
+              inputMode="numeric"
+              autoComplete="off"
+              maxLength={6}
+            />
           </Field>
           <SwitchField
             name="activo"

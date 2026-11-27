@@ -1,12 +1,15 @@
-import { getSession } from "@/lib/session";
+import { sesionConPermiso } from "@/lib/auth/acceso";
 import type { FormState } from "@/lib/validation/admin";
 
 /** Módulo de helpers para las server actions de /admin (no es "use server"). */
 
-export async function requireTenant() {
-  const tenant = await getSession();
-  if (!tenant) throw new Error("No hay sesión activa");
-  return tenant;
+/**
+ * Sesión de un usuario con permiso de administrar. Lanza si no hay sesión o
+ * si el rol no alcanza: la UI no ofrece estas acciones a otros roles, así que
+ * llegar acá sin permiso es un pedido armado a mano.
+ */
+export async function requireAdmin() {
+  return sesionConPermiso("administrar");
 }
 
 export function parseId(formData: FormData): number | null {
@@ -19,13 +22,13 @@ export function pgErrorState(err: unknown): FormState {
   if (e?.code === "23505") {
     return {
       ok: false,
-      error: "Ya existe un registro con ese valor único (ej. SKU o slug repetido).",
+      error: "Ya existe un registro con ese valor único (ej. SKU repetido).",
     };
   }
   if (e?.code === "23503") {
     return {
       ok: false,
-      error: "Está en uso por otras filas, no se puede eliminar.",
+      error: "No se puede eliminar porque otros datos lo usan.",
     };
   }
   return { ok: false, error: e?.message ?? "Ocurrió un error inesperado." };

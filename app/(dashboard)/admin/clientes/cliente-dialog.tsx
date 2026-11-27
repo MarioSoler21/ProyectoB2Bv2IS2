@@ -16,7 +16,7 @@ import {
 } from "../_components/entity-dialog";
 import { crearCliente, actualizarCliente } from "./actions";
 
-type ZonaOpt = { id: number; nombre: string };
+type Opcion = { id: number; nombre: string };
 
 const TIPO_OPTS = TIPOS_CLIENTE.map((t) => ({
   value: t,
@@ -26,12 +26,15 @@ const TIPO_OPTS = TIPOS_CLIENTE.map((t) => ({
 export function ClienteDialog({
   cliente,
   zonas,
+  vendedores,
 }: {
   cliente?: ClienteRow;
-  zonas: ZonaOpt[];
+  zonas: Opcion[];
+  vendedores: Opcion[];
 }) {
   const editar = !!cliente;
   const zonaOpts = zonas.map((z) => ({ value: String(z.id), label: z.nombre }));
+  const vendedorOpts = vendedores.map((v) => ({ value: String(v.id), label: v.nombre }));
 
   return (
     <EntityDialog
@@ -103,6 +106,15 @@ export function ClienteDialog({
               includeNone
             />
           </div>
+          <SelectField
+            name="vendedor_id"
+            label="Vendedor"
+            errors={errors}
+            options={vendedorOpts}
+            defaultValue={cliente?.vendedor_id ? String(cliente.vendedor_id) : ""}
+            includeNone
+            noneLabel="Sin asignar"
+          />
           <Field label="Notas" name="notas" errors={errors}>
             <Textarea
               id="notas"

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { ROLES } from "@/lib/auth/permisos";
+
 /**
  * Esquemas de validación para las server actions de /admin. Reciben el objeto
  * plano de un FormData (Object.fromEntries), así que todo entra como string.
@@ -27,13 +29,30 @@ const hexOpcional = z
   .transform((v) => (v === "" ? null : v.toLowerCase()))
   .refine((v) => v === null || /^#[0-9a-f]{6}$/.test(v), "Color inválido (#rrggbb)");
 
-export const ROLES = [
-  "admin",
-  "vendedor",
-  "despacho",
-  "operador_bodega",
-  "cliente_portal",
-] as const;
+export { ROLES };
+
+/** Roles que entran al panel con correo y contraseña (el operador de bodega usa PIN). */
+export const ROLES_CON_CORREO: readonly string[] = ["admin", "vendedor", "despacho"];
+
+const correoOpcional = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .transform((v) => (v === "" ? null : v))
+  .refine((v) => v === null || z.email().safeParse(v).success, "Correo inválido");
+
+/** Contraseña nueva: vacía significa "no tocar". */
+const contrasenaOpcional = z
+  .string()
+  .transform((v) => (v === "" ? null : v))
+  .refine((v) => v === null || v.length >= 8, "Mínimo 8 caracteres");
+
+/** PIN nuevo: vacío significa "no tocar". Se guarda hasheado. */
+const pinOpcional = z
+  .string()
+  .trim()
+  .transform((v) => (v === "" ? null : v))
+  .refine((v) => v === null || /^\d{4,6}$/.test(v), "De 4 a 6 dígitos");
 
 export const UNIDADES = [
   "unidad",
@@ -45,7 +64,6 @@ export const UNIDADES = [
   "docena",
 ] as const;
 
-export const PLANES = ["starter", "pro", "enterprise"] as const;
 
 export const TIPOS_CLIENTE = [
   "pulperia",
@@ -60,7 +78,9 @@ export const usuarioSchema = z.object({
   nombre: requerido,
   rol: z.enum(ROLES),
   telefono: textoOpcional,
-  pin: textoOpcional,
+  email: correoOpcional,
+  password: contrasenaOpcional,
+  pin: pinOpcional,
   activo: booleano,
 });
 
@@ -70,6 +90,7 @@ export const clienteSchema = z.object({
   telefono: textoOpcional,
   direccion: textoOpcional,
   zona_id: idOpcional,
+  vendedor_id: idOpcional,
   tipo_cliente: textoOpcional,
   notas: textoOpcional,
   activo: booleano,
@@ -97,14 +118,13 @@ export const categoriaSchema = z.object({
   nombre: requerido,
 });
 
+/**
+ * Lo que el admin de una empresa puede cambiar de su cuenta. El plan y el
+ * identificador (slug) los define Pedidly: no están acá a propósito, así que
+ * aunque alguien los mande en el formulario, no se guardan.
+ */
 export const tenantConfigSchema = z.object({
   nombre_empresa: requerido,
-  slug: z
-    .string()
-    .trim()
-    .min(1, "Requerido")
-    .regex(/^[a-z0-9-]+$/, "Solo minúsculas, números y guiones"),
-  plan: z.enum(PLANES),
   nombre_app: textoOpcional,
   subtitulo_app: textoOpcional,
   mensaje_portal: textoOpcional,
@@ -136,3 +156,14 @@ export function parseForm<T extends z.ZodType>(
     },
   };
 }
+
+/** Entrada de mercadería (suma) o ajuste por conteo físico (el stock pasa a ser ese número). */
+export const movimientoStockSchema = z.object({
+  producto_id: z.coerce.number().int().positive(),
+  tipo: z.enum(["entrada", "ajuste"]),
+  cantidad: z.coerce
+    .number()
+    .refine((v) => Number.isFinite(v) && v >= 0, "Tiene que ser un número mayor o igual a cero")
+    .refine((v) => v <= 1_000_000, "Demasiado grande"),
+  motivo: textoOpcional,
+});

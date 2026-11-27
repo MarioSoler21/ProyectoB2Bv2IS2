@@ -41,3 +41,36 @@ no deben sincronizarse con OneDrive ni mezclarse con este repo.
 ### Roadmap guiado por la revisión comercial — 2026-11-26
 El orden de trabajo sale de `revision-comercial.md`: primero lo que piden más
 distribuidoras y lo que tiene base en la BD.
+
+### Matriz de permisos única, chequeada en el servidor — 2026-11-27
+`lib/auth/permisos.ts` define qué puede cada rol; el menú y los guardas del
+servidor leen la misma matriz. Cada página llama `exigirPermiso` y cada
+acción `sesionConPermiso`, no basta con esconder el botón.
+**Por qué:** el admin usa `service_role` (se salta RLS); sin chequeo en el
+servidor un vendedor podía cambiar precios o hacerse admin.
+(Reemplaza en parte "el resto de roles ve todo": ahora despacho no entra a
+Mis clientes.)
+
+### Cambios de estado y stock solo por funciones Postgres — 2026-11-27
+`cambiar_estado_pedidos`, `deshacer_estado_pedidos` y
+`registrar_movimiento_stock` hacen estado + historial + stock en una
+transacción. Solo `service_role` puede llamarlas.
+**Por qué:** que no quede un pedido despachado sin su salida de stock, ni un
+deshacer elegido por el navegador.
+
+### Deshacer lee el historial y vence a los 15 minutos — 2026-11-27
+El estado al que vuelve un pedido sale de `pedido_historial`, nunca del
+cliente. Pasados 15 minutos ya no se deshace (hay que anular o editar).
+
+### Editar un pedido no cambia el precio pactado — 2026-11-27
+Las líneas existentes conservan su precio; solo los productos agregados
+toman el precio vigente del catálogo. Cada edición queda en el historial.
+
+### Plan e identificador de empresa no los cambia el cliente — 2026-11-27
+Se muestran de solo lectura en Configuración; los cambia el equipo de
+Pedidly.
+
+### PIN hasheado con bcrypt — 2026-11-27
+`usuarios.pin` se guarda con `extensions.crypt`; la app solo sabe si hay PIN
+o no. El acceso con correo vive en Supabase Auth y `usuarios.email` es copia
+para listarlo.

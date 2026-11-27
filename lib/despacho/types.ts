@@ -35,7 +35,4 @@ export type TableroDespacho = {
   productosRetirados: ProductoPortal[];
 };
 
-/** Estado de un pedido antes de despacharlo, para poder deshacer. */
-export type EstadoPrevio = { id: number; estado: EstadoPedido };
-
 export type Resultado<T = void> = { ok: true; datos: T } | { ok: false; error: string };

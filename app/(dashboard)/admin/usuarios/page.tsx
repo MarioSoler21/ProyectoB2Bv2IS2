@@ -1,5 +1,5 @@
-import { getSession } from "@/lib/session";
-import { listUsuarios } from "@/lib/data/admin";
+import { exigirPermiso } from "@/lib/auth/acceso";
+import { listUsuarios, type UsuarioRow } from "@/lib/data/admin";
 import { ROL_LABEL } from "@/lib/admin-labels";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -16,8 +16,8 @@ import { UsuarioDialog } from "./usuario-dialog";
 import { setActivoUsuario } from "./actions";
 
 export default async function UsuariosAdminPage() {
-  const tenant = await getSession();
-  const usuarios = tenant ? await listUsuarios(tenant.id) : [];
+  const tenant = await exigirPermiso("administrar");
+  const usuarios = await listUsuarios(tenant.id);
 
   return (
     <main className="p-6 lg:p-8">
@@ -28,7 +28,7 @@ export default async function UsuariosAdminPage() {
             Usuarios
           </h1>
           <p className="text-sm text-muted-foreground">
-            {usuarios.length} en {tenant?.nombreEmpresa}
+            {usuarios.length} en {tenant.nombreEmpresa}
           </p>
         </div>
         <UsuarioDialog />
@@ -40,6 +40,7 @@ export default async function UsuariosAdminPage() {
             <TableRow>
               <TableHead>Nombre</TableHead>
               <TableHead>Rol</TableHead>
+              <TableHead>Acceso</TableHead>
               <TableHead>Teléfono</TableHead>
               <TableHead className="w-20">Activo</TableHead>
               <TableHead className="w-16 text-right">Editar</TableHead>
@@ -49,7 +50,7 @@ export default async function UsuariosAdminPage() {
             {usuarios.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={5}
+                  colSpan={6}
                   className="py-8 text-center text-sm text-muted-foreground"
                 >
                   Sin usuarios todavía.
@@ -63,6 +64,9 @@ export default async function UsuariosAdminPage() {
                 </TableCell>
                 <TableCell>
                   <Badge variant="outline">{ROL_LABEL[u.rol] ?? u.rol}</Badge>
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  <Acceso usuario={u} />
                 </TableCell>
                 <TableCell className="text-muted-foreground">
                   {u.telefono ?? "—"}
@@ -83,5 +87,14 @@ export default async function UsuariosAdminPage() {
         </Table>
       </div>
     </main>
+  );
+}
+
+/** Cómo entra al sistema: correo, PIN, o todavía no puede entrar. */
+function Acceso({ usuario }: { usuario: UsuarioRow }) {
+  if (usuario.auth_user_id) return <span>{usuario.email ?? "Con correo"}</span>;
+  if (usuario.tiene_pin) return <span>Con PIN</span>;
+  return (
+    <span className="text-amber-700 dark:text-amber-400">Sin acceso: edítalo y ponle correo</span>
   );
 }

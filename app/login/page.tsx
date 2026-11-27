@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CREDENCIALES_FAKE, FAKE_LOGIN_ENABLED } from "@/lib/auth/fake-login";
 import { getSession } from "@/lib/session";
+import { inicioDeRol } from "@/lib/auth/permisos";
 import { LogoPedidly } from "@/components/logo-pedidly";
 import { PRODUCTO } from "@/lib/branding";
 import { LoginForm } from "./login-form";
@@ -10,7 +11,7 @@ import { LoginForm } from "./login-form";
 export default async function LoginPage() {
   const session = await getSession();
   if (session) {
-    redirect("/despacho");
+    redirect(inicioDeRol(session.rol));
   }
 
   return (

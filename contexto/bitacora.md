@@ -4,6 +4,61 @@ Lo más nuevo arriba. Cada entrada: qué se pidió → qué se hizo → cómo qu
 
 ---
 
+## 2026-11-27
+
+### Los 8 arreglos de la evaluación
+- **Pedido:** "haz todos estos cambios" (los 8 hallazgos sin sentido de
+  `evaluacion-2026-11-27.md`).
+- **Hecho:**
+  1. **Permisos por rol:** matriz única en `lib/auth/permisos.ts`;
+     `exigirPermiso` (páginas) y `sesionConPermiso` (acciones) en
+     `lib/auth/acceso.ts`. Admin todo; vendedor Mis clientes; despacho
+     Despacho y Descargas. El menú muestra solo lo permitido. Plan e
+     identificador de la empresa quedan de solo lectura.
+  2. **Dashboard:** separa ingresado / despachado+entregado / por despachar,
+     periodo 7/30/90 días, días en hora de Honduras, "clientes que pidieron X
+     de Y activos", lee más de 1000 pedidos (paginado).
+  3. **Editar en despacho:** las líneas conservan el precio pactado; solo los
+     productos nuevos toman precio de catálogo; cada edición queda en
+     `pedido_historial` con el detalle.
+  4. **Cartera por vendedor:** `clientes.vendedor_id`, el vendedor ve solo lo
+     suyo, el pedido guarda vendedor, zona y origen; Admin → Clientes asigna
+     vendedor y avisa cuántos quedan sin asignar.
+  5. **Stock:** despachar descuenta (salida), deshacer devuelve (entrada);
+     Admin → Productos registra entradas y ajustes por conteo.
+  6. **Usuarios:** el admin crea el acceso (correo + contraseña inicial) en
+     Supabase Auth; PIN con bcrypt, nunca viaja al navegador; no se puede
+     dejar la empresa sin admin activo.
+  7. **Deshacer:** el servidor lee el estado anterior de `pedido_historial`,
+     solo dentro de 15 minutos.
+  8. **Ciclo completo:** confirmado → en preparación → despachado →
+     entregado, con botón del paso siguiente y acciones en lote. Todo pasa
+     por funciones Postgres atómicas (`cambiar_estado_pedidos`,
+     `deshacer_estado_pedidos`, `registrar_movimiento_stock`).
+  - Login de prueba con una cuenta demo por rol (`lib/auth/fake-login.ts`).
+- **Migraciones:** `20261127100001_cliente_vendedor.sql` (aplicada en dev),
+  `20261127100002_usuarios_acceso.sql` y
+  `20261127100003_ciclo_pedido_inventario.sql` (falta aplicarlas).
+- **Verificado:** `tsc` y `eslint` limpios; el SQL parsea con el parser de
+  Postgres. En el navegador se probó permisos por rol y la cartera del
+  vendedor. El ciclo de despacho, stock y usuarios queda por probar después
+  de aplicar las migraciones.
+- **Rama:** `feat/evaluacion-correcciones` (reemplaza a
+  `feat/vendedor-en-pedido`, que se puede descartar).
+
+### Evaluación comercial con 10 roles
+- **Pedido:** 10 agentes que evalúen la app en local con lógica comercial: cosas
+  sin sentido, cosas lógicas de añadir, sugerencias.
+- **Hecho:** 10 roles (gerente, vendedor, despacho, bodega, cliente del portal,
+  cobranza, admin, comprador SaaS, auditor de lógica, analista) recorrieron la
+  app en localhost y el código, solo lectura. Un sintetizador verificó en el
+  código los 8 hallazgos "sin sentido" de mayor impacto (los 8 se sostienen).
+- **Resultado:** `evaluacion-2026-11-27.md`. Ninguno pagaría hoy; con arreglos,
+  9/10 pagarían USD 60-200/mes. Lo más grave y nuevo: no hay permisos por rol,
+  el dashboard llama "ventas" a pedidos no despachados, editar un pedido en
+  despacho le cambia el precio, y la cartera por vendedor no está en el código.
+- **Queda:** decidir el orden; el top 10 está al final del informe.
+
 ## 2026-11-26
 
 ### Carpeta de contexto

@@ -1,10 +1,5 @@
-import { getSession } from "@/lib/session";
-import {
-  listClientes,
-  listZonas,
-  type ClienteRow,
-  type ZonaRow,
-} from "@/lib/data/admin";
+import { exigirPermiso } from "@/lib/auth/acceso";
+import { listClientes, listVendedores, listZonas } from "@/lib/data/admin";
 import { TIPO_CLIENTE_LABEL } from "@/lib/admin-labels";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -22,12 +17,16 @@ import { TokenCell } from "./token-cell";
 import { setActivoCliente } from "./actions";
 
 export default async function ClientesAdminPage() {
-  const tenant = await getSession();
-  const [clientes, zonas]: [ClienteRow[], ZonaRow[]] = tenant
-    ? await Promise.all([listClientes(tenant.id), listZonas(tenant.id)])
-    : [[], []];
+  const tenant = await exigirPermiso("administrar");
+  const [clientes, zonas, vendedores] = await Promise.all([
+    listClientes(tenant.id),
+    listZonas(tenant.id),
+    listVendedores(tenant.id),
+  ]);
 
   const zonaNombre = new Map(zonas.map((z) => [z.id, z.nombre]));
+  const vendedorNombre = new Map(vendedores.map((v) => [v.id, v.nombre]));
+  const sinVendedor = clientes.filter((c) => c.activo && c.vendedor_id === null).length;
 
   return (
     <main className="p-6 lg:p-8">
@@ -38,10 +37,11 @@ export default async function ClientesAdminPage() {
             Clientes
           </h1>
           <p className="text-sm text-muted-foreground">
-            {clientes.length} en {tenant?.nombreEmpresa}
+            {clientes.length} en {tenant.nombreEmpresa}
+            {sinVendedor > 0 && ` · ${sinVendedor} activos sin vendedor (ningún vendedor los ve)`}
           </p>
         </div>
-        <ClienteDialog zonas={zonas} />
+        <ClienteDialog zonas={zonas} vendedores={vendedores} />
       </div>
 
       <div className="overflow-x-auto rounded-xl ring-1 ring-foreground/10">
@@ -51,6 +51,7 @@ export default async function ClientesAdminPage() {
               <TableHead>Negocio</TableHead>
               <TableHead>Contacto</TableHead>
               <TableHead>Zona</TableHead>
+              <TableHead>Vendedor</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead>Portal</TableHead>
               <TableHead className="w-20">Activo</TableHead>
@@ -61,7 +62,7 @@ export default async function ClientesAdminPage() {
             {clientes.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={8}
                   className="py-8 text-center text-sm text-muted-foreground"
                 >
                   Sin clientes todavía.
@@ -79,6 +80,13 @@ export default async function ClientesAdminPage() {
                 </TableCell>
                 <TableCell className="text-muted-foreground">
                   {c.zona_id ? (zonaNombre.get(c.zona_id) ?? "—") : "—"}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {c.vendedor_id ? (
+                    (vendedorNombre.get(c.vendedor_id) ?? "Vendedor inactivo")
+                  ) : (
+                    <span className="italic">Sin asignar</span>
+                  )}
                 </TableCell>
                 <TableCell>
                   {c.tipo_cliente ? (
@@ -100,7 +108,7 @@ export default async function ClientesAdminPage() {
                   />
                 </TableCell>
                 <TableCell className="text-right">
-                  <ClienteDialog cliente={c} zonas={zonas} />
+                  <ClienteDialog cliente={c} zonas={zonas} vendedores={vendedores} />
                 </TableCell>
               </TableRow>
             ))}

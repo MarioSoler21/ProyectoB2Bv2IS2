@@ -11,8 +11,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getSession } from "@/lib/session";
-import { getClientes, getProductos } from "@/lib/data/catalogo";
+import { exigirPermiso } from "@/lib/auth/acceso";
+import { getClienteDeCartera, getProductos } from "@/lib/data/catalogo";
 import { crearPedido } from "../../actions";
 
 const formatoMoneda = new Intl.NumberFormat("es-HN", {
@@ -26,14 +26,11 @@ export default async function NuevoPedidoPage({
   params: Promise<{ clienteId: string }>;
 }) {
   const { clienteId } = await params;
-  const tenant = await getSession();
-  if (!tenant) return notFound();
-
-  const [clientes, productos] = await Promise.all([
-    getClientes(tenant.id),
+  const tenant = await exigirPermiso("tomar_pedidos");
+  const [cliente, productos] = await Promise.all([
+    getClienteDeCartera(tenant, Number(clienteId)),
     getProductos(tenant.id),
   ]);
-  const cliente = clientes.find((c) => String(c.id) === clienteId);
   if (!cliente) return notFound();
 
   return (

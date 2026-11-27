@@ -8,12 +8,14 @@ import { toBranding, type TenantBranding } from "@/lib/branding";
  * editables.
  */
 
+/** Lo que el panel ve de un usuario. El PIN nunca sale del servidor: solo si tiene. */
 export type UsuarioRow = {
   id: number;
   nombre: string;
   rol: string;
   telefono: string | null;
-  pin: string | null;
+  email: string | null;
+  tiene_pin: boolean;
   activo: boolean;
   auth_user_id: string | null;
   created_at: string;
@@ -29,6 +31,7 @@ export type ClienteRow = {
   tipo_cliente: string | null;
   notas: string | null;
   token_unico: string;
+  vendedor_id: number | null;
   activo: boolean;
 };
 
@@ -77,12 +80,27 @@ export async function listUsuarios(tenantId: string): Promise<UsuarioRow[]> {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("usuarios")
-    .select("id, nombre, rol, telefono, pin, activo, auth_user_id, created_at")
+    .select("id, nombre, rol, telefono, email, pin, activo, auth_user_id, created_at")
     .eq("tenant_id", tenantId)
     .order("activo", { ascending: false })
     .order("nombre");
   if (error) throw error;
-  return data as UsuarioRow[];
+  return data.map(({ pin, ...usuario }) => ({ ...usuario, tiene_pin: pin !== null }));
+}
+
+export type VendedorOpcion = { id: number; nombre: string };
+
+/** Vendedores activos del tenant: a quién se le puede asignar un cliente. */
+export async function listVendedores(tenantId: string): Promise<VendedorOpcion[]> {
+  const { data, error } = await createAdminClient()
+    .from("usuarios")
+    .select("id, nombre")
+    .eq("tenant_id", tenantId)
+    .eq("rol", "vendedor")
+    .eq("activo", true)
+    .order("nombre");
+  if (error) throw error;
+  return data;
 }
 
 export async function listClientes(tenantId: string): Promise<ClienteRow[]> {
@@ -90,7 +108,7 @@ export async function listClientes(tenantId: string): Promise<ClienteRow[]> {
   const { data, error } = await supabase
     .from("clientes")
     .select(
-      "id, nombre_negocio, nombre_contacto, telefono, direccion, zona_id, tipo_cliente, notas, token_unico, activo",
+      "id, nombre_negocio, nombre_contacto, telefono, direccion, zona_id, tipo_cliente, notas, token_unico, vendedor_id, activo",
     )
     .eq("tenant_id", tenantId)
     .order("activo", { ascending: false })

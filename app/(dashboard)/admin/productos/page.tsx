@@ -1,10 +1,5 @@
-import { getSession } from "@/lib/session";
-import {
-  listProductos,
-  listCategorias,
-  type ProductoRow,
-  type CategoriaRow,
-} from "@/lib/data/admin";
+import { exigirPermiso } from "@/lib/auth/acceso";
+import { listProductos, listCategorias } from "@/lib/data/admin";
 import { money } from "@/lib/admin-labels";
 import {
   Table,
@@ -18,12 +13,14 @@ import { AdminTabs } from "../_components/admin-tabs";
 import { ActivoToggle } from "../_components/activo-toggle";
 import { ProductoDialog } from "./producto-dialog";
 import { setActivoProducto } from "./actions";
+import { MovimientoStockDialog } from "./movimiento-stock-dialog";
 
 export default async function ProductosAdminPage() {
-  const tenant = await getSession();
-  const [productos, categorias]: [ProductoRow[], CategoriaRow[]] = tenant
-    ? await Promise.all([listProductos(tenant.id), listCategorias(tenant.id)])
-    : [[], []];
+  const tenant = await exigirPermiso("administrar");
+  const [productos, categorias] = await Promise.all([
+    listProductos(tenant.id),
+    listCategorias(tenant.id),
+  ]);
 
   const catNombre = new Map(categorias.map((c) => [c.id, c.nombre]));
 
@@ -36,7 +33,7 @@ export default async function ProductosAdminPage() {
             Productos
           </h1>
           <p className="text-sm text-muted-foreground">
-            {productos.length} en {tenant?.nombreEmpresa}
+            {productos.length} en {tenant.nombreEmpresa}
           </p>
         </div>
         <ProductoDialog categorias={categorias} />
@@ -81,10 +78,15 @@ export default async function ProductosAdminPage() {
                   {money.format(p.precio)}
                 </TableCell>
                 <TableCell className="text-right tabular-nums text-muted-foreground">
-                  {p.stock_actual}
-                  {p.stock_actual <= p.stock_minimo && (
-                    <span className="ml-1 text-destructive">•</span>
-                  )}
+                  <span className="inline-flex items-center gap-1">
+                    <span className={p.stock_actual <= p.stock_minimo ? "font-medium text-destructive" : undefined}>
+                      {p.stock_actual}
+                    </span>
+                    {p.stock_actual <= p.stock_minimo && (
+                      <span className="sr-only">(debajo del mínimo)</span>
+                    )}
+                    <MovimientoStockDialog producto={p} />
+                  </span>
                 </TableCell>
                 <TableCell>
                   <ActivoToggle
@@ -102,7 +104,8 @@ export default async function ProductosAdminPage() {
         </Table>
       </div>
       <p className="mt-3 text-xs text-muted-foreground">
-        El stock se ajusta con movimientos de inventario, no se edita acá.
+        El stock baja solo al despachar un pedido (y vuelve si se deshace el despacho). Las entradas de
+        mercadería y los ajustes por conteo se registran con el botón junto al stock.
       </p>
     </main>
   );

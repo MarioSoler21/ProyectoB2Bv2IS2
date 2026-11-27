@@ -3,14 +3,14 @@
 import { revalidatePath } from "next/cache";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { requireTenant, parseId, pgErrorState } from "@/lib/admin-action-utils";
+import { requireAdmin, parseId, pgErrorState } from "@/lib/admin-action-utils";
 import { parseForm, categoriaSchema, type FormState } from "@/lib/validation/admin";
 
 export async function crearCategoria(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const tenant = await requireTenant();
+  const tenant = await requireAdmin();
   const parsed = parseForm(categoriaSchema, formData);
   if (!parsed.ok) return parsed.state;
 
@@ -28,7 +28,7 @@ export async function actualizarCategoria(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const tenant = await requireTenant();
+  const tenant = await requireAdmin();
   const id = parseId(formData);
   if (!id) return { ok: false, error: "ID inválido." };
   const parsed = parseForm(categoriaSchema, formData);
@@ -50,7 +50,7 @@ export async function eliminarCategoria(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const tenant = await requireTenant();
+  const tenant = await requireAdmin();
   const id = parseId(formData);
   if (!id) return { ok: false, error: "ID inválido." };
 

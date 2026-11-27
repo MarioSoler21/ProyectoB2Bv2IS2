@@ -8,15 +8,16 @@ import {
 } from "@/lib/data/catalogo-pedido";
 import type { EstadoPedido } from "@/lib/data/pedidos";
 import { SIN_RUTA } from "@/lib/despacho/filtros";
-import type { EdicionPedido } from "@/lib/despacho/validacion";
+import { MINUTOS_PARA_DESHACER } from "@/lib/despacho/ciclo";
+import type { CambioEstado, Deshacer, EdicionPedido } from "@/lib/despacho/validacion";
 import type {
-  EstadoPrevio,
   OpcionFiltro,
   OrigenPedido,
   PedidoDespacho,
   TableroDespacho,
 } from "@/lib/despacho/types";
 import { etiquetaDia, formatearMomento, hoyISO, sumarDias } from "@/lib/portal/fechas";
+import { formatearCantidad } from "@/lib/portal/formato";
 import type { LineaPedido, ProductoPortal } from "@/lib/portal/types";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -175,63 +176,58 @@ async function registrarHistorial(autor: Autor, cambios: CambioHistorial[]) {
   if (error) throw error;
 }
 
-/** Marca como despachados los pedidos que sigan pendientes. Devuelve su estado anterior. */
-export async function despacharPedidos(autor: Autor, ids: number[]): Promise<EstadoPrevio[]> {
-  const supabase = createAdminClient();
-  const { data: pendientes, error } = await supabase
-    .from("pedidos")
-    .select("id, estado")
-    .eq("tenant_id", autor.tenantId)
-    .in("id", ids)
-    .in("estado", ESTADOS_PENDIENTES);
+const COMENTARIO_AVANCE: Record<CambioEstado["hacia"], string> = {
+  confirmado: "Confirmado desde el tablero",
+  en_preparacion: "En preparación desde el tablero",
+  despachado: "Despachado desde el tablero",
+  entregado: "Entregado desde el tablero",
+};
+
+/**
+ * Avanza pedidos de estado. La función de la base aplica el ciclo (solo toca
+ * los que están en un estado anterior válido), escribe el historial y, al
+ * despachar, descuenta el stock; todo en una transacción. Devuelve los ids
+ * que cambiaron.
+ */
+export async function cambiarEstado(autor: Autor, { ids, hacia }: CambioEstado): Promise<number[]> {
+  const { data, error } = await createAdminClient().rpc("cambiar_estado_pedidos", {
+    p_tenant_id: Number(autor.tenantId),
+    p_ids: ids,
+    p_hacia: hacia,
+    p_usuario_id: autor.usuarioId,
+    p_comentario: COMENTARIO_AVANCE[hacia],
+  });
   if (error) throw error;
-  if (pendientes.length === 0) return [];
-
-  const { error: errorUpdate } = await supabase
-    .from("pedidos")
-    .update({
-      estado: "despachado",
-      despachado_at: new Date().toISOString(),
-      despachado_por: autor.usuarioId,
-    })
-    .eq("tenant_id", autor.tenantId)
-    .in("id", pendientes.map((p) => p.id))
-    .in("estado", ESTADOS_PENDIENTES);
-  if (errorUpdate) throw errorUpdate;
-
-  const previos = pendientes as EstadoPrevio[];
-  await registrarHistorial(
-    autor,
-    previos.map((p) => ({ pedidoId: p.id, anterior: p.estado, nuevo: "despachado", comentario: "Despachado desde el tablero" })),
-  );
-  return previos;
+  return (data as { id_pedido: number }[]).map((fila) => fila.id_pedido);
 }
 
-/** Deshace un despacho: cada pedido vuelve al estado que tenía. */
-export async function restaurarEstados(autor: Autor, previos: EstadoPrevio[]): Promise<void> {
-  const supabase = createAdminClient();
-  const porEstado = Map.groupBy(previos, (p) => p.estado);
-
-  for (const [estado, grupo] of porEstado) {
-    const { error } = await supabase
-      .from("pedidos")
-      .update({ estado, despachado_at: null, despachado_por: null })
-      .eq("tenant_id", autor.tenantId)
-      .in("id", grupo.map((p) => p.id))
-      .eq("estado", "despachado");
-    if (error) throw error;
+/**
+ * Deshace el último cambio a `estado`. El estado al que vuelve cada pedido sale
+ * del historial (no del navegador) y solo vale por unos minutos; deshacer un
+ * despacho devuelve el stock.
+ */
+export async function deshacerCambio(autor: Autor, { ids, estado }: Deshacer): Promise<number> {
+  const { data, error } = await createAdminClient().rpc("deshacer_estado_pedidos", {
+    p_tenant_id: Number(autor.tenantId),
+    p_ids: ids,
+    p_estado_actual: estado,
+    p_usuario_id: autor.usuarioId,
+    p_ventana: `${MINUTOS_PARA_DESHACER} minutes`,
+  });
+  if (error) throw error;
+  const restaurados = (data as unknown[]).length;
+  if (restaurados === 0) {
+    throw new ErrorDespacho(
+      `Ya no se puede deshacer: pasaron más de ${MINUTOS_PARA_DESHACER} minutos o el pedido cambió.`,
+    );
   }
-
-  await registrarHistorial(
-    autor,
-    previos.map((p) => ({ pedidoId: p.id, anterior: "despachado", nuevo: p.estado, comentario: "Despacho deshecho" })),
-  );
+  return restaurados;
 }
 
 async function pedidoEditable(autor: Autor, id: number) {
   const { data, error } = await createAdminClient()
     .from("pedidos")
-    .select("id, estado, descuento")
+    .select("id, estado, descuento, notas")
     .eq("tenant_id", autor.tenantId)
     .eq("id", id)
     .maybeSingle();
@@ -240,42 +236,81 @@ async function pedidoEditable(autor: Autor, id: number) {
   if ((ESTADOS_CERRADOS as readonly string[]).includes(data.estado)) {
     throw new ErrorDespacho("Este pedido ya salió o fue anulado; no se puede editar.");
   }
-  return { estado: data.estado as EstadoPedido, descuento: Number(data.descuento) };
+  return {
+    estado: data.estado as EstadoPedido,
+    descuento: Number(data.descuento),
+    notas: (data.notas as string | null) ?? "",
+  };
+}
+
+/** "agregó 2 × Chumacera UCP205; UC204: 3 → 5; quitó Rodamiento 6204; cambió las notas" */
+function describirEdicion(
+  antes: ReadonlyMap<number, number>,
+  despues: ReadonlyMap<number, number>,
+  nombres: ReadonlyMap<number, string>,
+  notasCambiaron: boolean,
+): string {
+  const nombre = (id: number) => nombres.get(id) ?? `producto ${id}`;
+  const cambios: string[] = [];
+  for (const [id, cantidad] of despues) {
+    const previa = antes.get(id);
+    if (previa === undefined) cambios.push(`agregó ${formatearCantidad(cantidad)} × ${nombre(id)}`);
+    else if (previa !== cantidad) {
+      cambios.push(`${nombre(id)}: ${formatearCantidad(previa)} → ${formatearCantidad(cantidad)}`);
+    }
+  }
+  for (const id of antes.keys()) if (!despues.has(id)) cambios.push(`quitó ${nombre(id)}`);
+  if (notasCambiaron) cambios.push("cambió las notas");
+  return `Editado: ${cambios.join("; ")}`.slice(0, 1000);
 }
 
 /**
- * Reemplaza las líneas y notas de un pedido. Los precios salen del catálogo;
- * un producto que ya no está activo conserva el precio con que se pidió.
- * Inserta las líneas nuevas ANTES de borrar las viejas: si algo falla a
- * mitad, el pedido nunca queda vacío.
+ * Reemplaza las líneas y notas de un pedido. Las líneas que ya estaban
+ * conservan el precio pactado; solo los productos nuevos toman el precio
+ * actual del catálogo (y tienen que estar activos). Inserta las líneas nuevas
+ * ANTES de borrar las viejas: si algo falla a mitad, el pedido nunca queda
+ * vacío. Cada edición queda en el historial con el detalle de qué cambió.
  */
 export async function guardarEdicion(autor: Autor, edicion: EdicionPedido): Promise<void> {
   const supabase = createAdminClient();
-  const { descuento } = await pedidoEditable(autor, edicion.id);
-  const productoIds = edicion.lineas.map((l) => l.productoId);
+  const actual = await pedidoEditable(autor, edicion.id);
 
-  const [viejas, catalogo] = await Promise.all([
-    supabase
-      .from("pedido_items")
-      .select("id, producto_id, precio_unitario")
-      .eq("tenant_id", autor.tenantId)
-      .eq("pedido_id", edicion.id),
-    supabase
-      .from("productos")
-      .select("id, precio")
-      .eq("tenant_id", autor.tenantId)
-      .eq("activo", true)
-      .in("id", productoIds),
-  ]);
+  const viejas = await supabase
+    .from("pedido_items")
+    .select("id, producto_id, cantidad, precio_unitario")
+    .eq("tenant_id", autor.tenantId)
+    .eq("pedido_id", edicion.id)
+    .order("id");
   if (viejas.error) throw viejas.error;
-  if (catalogo.error) throw catalogo.error;
 
-  const precios = new Map<number, number>();
-  for (const item of viejas.data) precios.set(item.producto_id, Number(item.precio_unitario));
-  for (const producto of catalogo.data) precios.set(producto.id, Number(producto.precio));
+  // Precio pactado y cantidad total de lo que ya estaba en el pedido.
+  const pactado = new Map<number, number>();
+  const antes = new Map<number, number>();
+  for (const item of viejas.data) {
+    if (!pactado.has(item.producto_id)) pactado.set(item.producto_id, Number(item.precio_unitario));
+    antes.set(item.producto_id, (antes.get(item.producto_id) ?? 0) + Number(item.cantidad));
+  }
+  const despues = new Map(edicion.lineas.map((l) => [l.productoId, l.cantidad]));
+  const notas = edicion.notas.trim();
+  const notasCambiaron = notas !== actual.notas.trim();
+
+  const mismasLineas =
+    antes.size === despues.size && [...despues].every(([id, cantidad]) => antes.get(id) === cantidad);
+  if (mismasLineas && !notasCambiaron) return;
+
+  const ids = [...new Set([...antes.keys(), ...despues.keys()])];
+  const productos = await supabase
+    .from("productos")
+    .select("id, nombre, precio, activo")
+    .eq("tenant_id", autor.tenantId)
+    .in("id", ids);
+  if (productos.error) throw productos.error;
+  const porId = new Map(productos.data.map((p) => [p.id, p]));
 
   const items = edicion.lineas.map((linea) => {
-    const precio = precios.get(linea.productoId);
+    const producto = porId.get(linea.productoId);
+    const precio =
+      pactado.get(linea.productoId) ?? (producto?.activo ? Number(producto.precio) : undefined);
     if (precio === undefined) throw new ErrorDespacho("Uno de los productos ya no está disponible.");
     return {
       tenant_id: autor.tenantId,
@@ -302,10 +337,20 @@ export async function guardarEdicion(autor: Autor, edicion: EdicionPedido): Prom
 
   const { error: errorUpdate } = await supabase
     .from("pedidos")
-    .update({ subtotal, total: Math.max(0, subtotal - descuento), notas: edicion.notas || null })
+    .update({ subtotal, total: Math.max(0, subtotal - actual.descuento), notas: notas || null })
     .eq("tenant_id", autor.tenantId)
     .eq("id", edicion.id);
   if (errorUpdate) throw errorUpdate;
+
+  const nombres = new Map(productos.data.map((p) => [p.id, p.nombre as string]));
+  await registrarHistorial(autor, [
+    {
+      pedidoId: edicion.id,
+      anterior: actual.estado,
+      nuevo: actual.estado,
+      comentario: describirEdicion(antes, despues, nombres, notasCambiaron),
+    },
+  ]);
 }
 
 /** Anula (no borra) un pedido que todavía no salió; queda en el historial. */
@@ -315,7 +360,8 @@ export async function anularPedido(autor: Autor, id: number): Promise<void> {
     .from("pedidos")
     .update({ estado: "anulado" })
     .eq("tenant_id", autor.tenantId)
-    .eq("id", id);
+    .eq("id", id)
+    .eq("estado", estado);
   if (error) throw error;
 
   await registrarHistorial(autor, [

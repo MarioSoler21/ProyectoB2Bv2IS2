@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Phone, User } from "lucide-react";
+import { CircleCheck, Phone, User } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -8,12 +8,20 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getSession } from "@/lib/session";
-import { getClientes } from "@/lib/data/catalogo";
+import { exigirPermiso } from "@/lib/auth/acceso";
+import { puede } from "@/lib/auth/permisos";
+import { getCartera } from "@/lib/data/catalogo";
 
-export default async function MisClientesPage() {
-  const tenant = await getSession();
-  const clientes = tenant ? await getClientes(tenant.id) : [];
+export default async function MisClientesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ creado?: string }>;
+}) {
+  const { creado } = await searchParams;
+  const numeroCreado = /^\d+$/.test(creado ?? "") ? creado : null;
+  const tenant = await exigirPermiso("tomar_pedidos");
+  const clientes = await getCartera(tenant);
+  const veTodos = puede(tenant.rol, "ver_todos_los_clientes");
 
   return (
     <main className="p-6 lg:p-8">
@@ -22,14 +30,28 @@ export default async function MisClientesPage() {
           Mis clientes
         </h1>
         <p className="text-sm text-muted-foreground">
-          Cartera de {tenant?.nombreEmpresa}. Elegí un cliente para hacerle un
-          pedido.
+          {veTodos
+            ? `Todos los clientes activos de ${tenant.nombreEmpresa}.`
+            : "Los clientes que tienes asignados."}{" "}
+          Elige uno para hacerle un pedido.
         </p>
       </div>
 
+      {numeroCreado && (
+        <p
+          role="status"
+          className="mb-4 flex items-center gap-2 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm text-success"
+        >
+          <CircleCheck className="size-4 shrink-0" aria-hidden />
+          Pedido #{numeroCreado} creado y confirmado. Ya aparece en despacho.
+        </p>
+      )}
+
       {clientes.length === 0 ? (
         <div className="rounded-xl border border-dashed p-10 text-center text-sm text-muted-foreground">
-          Este tenant todavía no tiene clientes.
+          {veTodos
+            ? "Todavía no hay clientes activos. Agrégalos en Admin → Clientes."
+            : "Todavía no tienes clientes asignados. Pídele al administrador que te asigne tu cartera."}
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

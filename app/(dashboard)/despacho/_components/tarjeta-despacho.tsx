@@ -1,16 +1,19 @@
 "use client";
 
-import { Check, Route, Truck } from "lucide-react";
+import { Route } from "lucide-react";
 
+import { EstadoBadge } from "@/components/estado-badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { tonoDelDia } from "@/lib/despacho/agrupacion";
+import { ACCION, siguientePaso, type EstadoAvance } from "@/lib/despacho/ciclo";
 import { estaDespachado } from "@/lib/despacho/filtros";
 import type { PedidoDespacho } from "@/lib/despacho/types";
 import { contar } from "@/lib/portal/formato";
 import type { FechaISO } from "@/lib/portal/types";
 import { cn } from "@/lib/utils";
 
+import { ICONO_ACCION } from "./iconos-accion";
 import { Insignia } from "./insignia";
 
 type Props = {
@@ -19,8 +22,9 @@ type Props = {
   etiquetaEntrega: string;
   seleccionado: boolean;
   onSeleccionar: (seleccionado: boolean) => void;
+  ocupado: boolean;
   onAbrir: () => void;
-  onDespachar: () => void;
+  onAvanzar: (hacia: EstadoAvance) => void;
 };
 
 /**
@@ -34,8 +38,9 @@ export function TarjetaDespacho({
   etiquetaEntrega,
   seleccionado,
   onSeleccionar,
+  ocupado,
   onAbrir,
-  onDespachar,
+  onAvanzar,
 }: Props) {
   const despachado = estaDespachado(pedido.estado);
   const tono = tonoDelDia(pedido.fechaEntrega, hoy, despachado ? 0 : 1);
@@ -70,11 +75,7 @@ export function TarjetaDespacho({
         <Insignia tono={pedido.origen === "cliente_portal" ? "portal" : "manual"}>
           {pedido.origen === "cliente_portal" ? "Portal" : "Manual"}
         </Insignia>
-        {despachado && (
-          <Insignia tono="despachado" className="ml-auto">
-            <Check className="size-3" aria-hidden /> Despachado
-          </Insignia>
-        )}
+        <EstadoBadge estado={pedido.estado} className="ml-auto" />
       </div>
 
       <div className="min-w-0">
@@ -103,11 +104,47 @@ export function TarjetaDespacho({
         <span className="text-muted-foreground">{pedido.creadoEtiqueta}</span>
       </div>
 
-      {!despachado && (
-        <Button size="sm" className="relative h-9 w-full" onClick={onDespachar}>
-          <Truck /> Despachar
-        </Button>
-      )}
+      <AccionesTarjeta estado={pedido.estado} ocupado={ocupado} onAvanzar={onAvanzar} />
     </article>
+  );
+}
+
+/**
+ * El paso siguiente del pedido, y "Despachar" como atajo mientras todavía no
+ * está listo (se puede despachar sin pasar por confirmar o preparar).
+ */
+function AccionesTarjeta({
+  estado,
+  ocupado,
+  onAvanzar,
+}: {
+  estado: PedidoDespacho["estado"];
+  ocupado: boolean;
+  onAvanzar: (hacia: EstadoAvance) => void;
+}) {
+  const siguiente = siguientePaso(estado);
+  if (!siguiente) return null;
+
+  const pasos: EstadoAvance[] =
+    siguiente === "confirmado" || siguiente === "en_preparacion" ? [siguiente, "despachado"] : [siguiente];
+
+  return (
+    <div className="relative grid auto-cols-fr grid-flow-col gap-2">
+      {pasos.map((hacia) => {
+        const Icono = ICONO_ACCION[hacia];
+        return (
+          <Button
+            key={hacia}
+            size="sm"
+            variant={hacia === "despachado" ? "default" : "outline"}
+            className="h-9"
+            disabled={ocupado}
+            onClick={() => onAvanzar(hacia)}
+          >
+            <Icono /> {ACCION[hacia]}
+          </Button>
+        );
+      })}
+    </div>
   );
 }

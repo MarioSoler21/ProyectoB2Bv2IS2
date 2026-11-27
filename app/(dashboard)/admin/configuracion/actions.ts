@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { requireTenant, pgErrorState } from "@/lib/admin-action-utils";
+import { requireAdmin, pgErrorState } from "@/lib/admin-action-utils";
 import {
   parseForm,
   tenantConfigSchema,
@@ -26,7 +26,7 @@ export async function actualizarConfiguracion(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const tenant = await requireTenant();
+  const tenant = await requireAdmin();
   const parsed = parseForm(tenantConfigSchema, formData);
   if (!parsed.ok) return parsed.state;
 
@@ -45,7 +45,7 @@ export async function subirLogoTenant(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const tenant = await requireTenant();
+  const tenant = await requireAdmin();
   const file = formData.get("logo");
 
   if (!(file instanceof File) || file.size === 0) {
@@ -81,7 +81,7 @@ export async function subirLogoTenant(
 }
 
 export async function quitarLogoTenant(): Promise<FormState> {
-  const tenant = await requireTenant();
+  const tenant = await requireAdmin();
   const supabase = createAdminClient();
   const { error } = await supabase
     .from("tenants")

@@ -11,6 +11,7 @@ import { getSession, type Session } from "@/lib/session";
 import { getTenantBranding } from "@/lib/data/admin";
 import { brandingStyle, type TenantBranding } from "@/lib/branding";
 import { ROL_LABEL } from "@/lib/admin-labels";
+import { seccionesPermitidas } from "@/lib/auth/permisos";
 import { salirDelTenant, cambiarNegocio } from "./actions";
 import { MenuMovil } from "./_components/menu-movil";
 
@@ -78,7 +79,7 @@ function ContenidoLateral({
           <ThemeToggle />
         </div>
         <Separator className="my-4" />
-        <DashboardNav />
+        <DashboardNav permitidas={seccionesPermitidas(tenant.rol)} />
       </div>
 
       <div className="space-y-2">

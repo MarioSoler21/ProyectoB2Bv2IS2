@@ -1,21 +1,27 @@
 "use client";
 
-import { FileDown, Truck, X } from "lucide-react";
+import { FileDown, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ACCION, ESTADOS_AVANCE, type EstadoAvance } from "@/lib/despacho/ciclo";
+
+import { ICONO_ACCION } from "./iconos-accion";
 
 type Props = {
   cantidad: number;
-  /** Cuántos de los seleccionados siguen pendientes (los únicos que se pueden despachar). */
-  pendientes: number;
+  /** Cuántos de los seleccionados pueden pasar a cada estado. */
+  elegibles: Record<EstadoAvance, number>;
   ocupado: boolean;
-  onDespachar: () => void;
+  onAvanzar: (hacia: EstadoAvance) => void;
   onPdf: () => void;
   onLimpiar: () => void;
 };
 
-/** Acciones en lote sobre los pedidos marcados. Flota abajo, siempre a mano. */
-export function BarraSeleccion({ cantidad, pendientes, ocupado, onDespachar, onPdf, onLimpiar }: Props) {
+/**
+ * Acciones en lote sobre los pedidos marcados. Flota abajo, siempre a mano;
+ * solo muestra los pasos que aplican a algo de la selección.
+ */
+export function BarraSeleccion({ cantidad, elegibles, ocupado, onAvanzar, onPdf, onLimpiar }: Props) {
   if (cantidad === 0) return null;
 
   return (
@@ -27,9 +33,19 @@ export function BarraSeleccion({ cantidad, pendientes, ocupado, onDespachar, onP
       <span className="text-sm font-semibold tabular-nums" aria-live="polite">
         {cantidad} {cantidad === 1 ? "seleccionado" : "seleccionados"}
       </span>
-      <Button onClick={onDespachar} disabled={ocupado || pendientes === 0}>
-        <Truck /> Despachar ({pendientes})
-      </Button>
+      {ESTADOS_AVANCE.filter((hacia) => elegibles[hacia] > 0).map((hacia) => {
+        const Icono = ICONO_ACCION[hacia];
+        return (
+          <Button
+            key={hacia}
+            variant={hacia === "despachado" ? "default" : "outline"}
+            onClick={() => onAvanzar(hacia)}
+            disabled={ocupado}
+          >
+            <Icono /> {ACCION[hacia]} ({elegibles[hacia]})
+          </Button>
+        );
+      })}
       <Button variant="outline" onClick={onPdf} disabled={ocupado}>
         <FileDown /> PDF ({cantidad})
       </Button>

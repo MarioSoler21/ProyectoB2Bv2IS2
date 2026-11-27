@@ -2,21 +2,21 @@
 
 import { revalidatePath } from "next/cache";
 
+import { sesionConPermiso, SinPermiso } from "@/lib/auth/acceso";
 import {
   anularPedido,
-  despacharPedidos,
+  cambiarEstado,
+  deshacerCambio,
   ErrorDespacho,
   guardarEdicion,
-  restaurarEstados,
 } from "@/lib/data/despacho";
-import type { EstadoPrevio, Resultado } from "@/lib/despacho/types";
+import type { Resultado } from "@/lib/despacho/types";
 import {
+  cambioEstadoSchema,
+  deshacerSchema,
   edicionPedidoSchema,
-  estadosPreviosSchema,
   idPedidoSchema,
-  idsPedidosSchema,
 } from "@/lib/despacho/validacion";
-import { getSession } from "@/lib/session";
 
 const RUTA = "/despacho";
 
@@ -26,37 +26,40 @@ type Esquema<E> = {
 };
 
 /**
- * Envuelve cada acción: exige sesión, valida la entrada con zod, revalida el
- * tablero y traduce los errores a un mensaje para el usuario.
+ * Envuelve cada acción: exige una sesión con permiso de despachar, valida la
+ * entrada con zod, revalida el tablero y traduce los errores a un mensaje para
+ * el usuario.
  */
 async function ejecutar<E, T>(
   entrada: unknown,
   esquema: Esquema<E>,
   accion: (autor: Autor, datos: E) => Promise<T>,
 ): Promise<Resultado<T>> {
-  const sesion = await getSession();
-  if (!sesion) return { ok: false, error: "Tu sesión expiró. Vuelve a iniciar sesión." };
-
-  const validado = esquema.safeParse(entrada);
-  if (!validado.success) return { ok: false, error: "Los datos enviados no son válidos." };
-
   try {
+    const sesion = await sesionConPermiso("despachar");
+
+    const validado = esquema.safeParse(entrada);
+    if (!validado.success) return { ok: false, error: "Los datos enviados no son válidos." };
+
     const datos = await accion({ tenantId: sesion.id, usuarioId: sesion.usuarioId }, validado.data);
     revalidatePath(RUTA);
     return { ok: true, datos };
   } catch (error) {
-    if (error instanceof ErrorDespacho) return { ok: false, error: error.message };
+    if (error instanceof ErrorDespacho || error instanceof SinPermiso) {
+      return { ok: false, error: error.message };
+    }
     console.error("[despacho] Falló una acción", error);
     return { ok: false, error: "No pudimos guardar el cambio. Intenta de nuevo." };
   }
 }
 
-export async function despachar(ids: unknown): Promise<Resultado<EstadoPrevio[]>> {
-  return ejecutar(ids, idsPedidosSchema, despacharPedidos);
+/** Confirmar, preparar, despachar o entregar. Devuelve los ids que cambiaron. */
+export async function avanzarEstado(cambio: unknown): Promise<Resultado<number[]>> {
+  return ejecutar(cambio, cambioEstadoSchema, cambiarEstado);
 }
 
-export async function deshacerDespacho(previos: unknown): Promise<Resultado> {
-  return ejecutar(previos, estadosPreviosSchema, restaurarEstados);
+export async function deshacerEstado(cambio: unknown): Promise<Resultado<number>> {
+  return ejecutar(cambio, deshacerSchema, deshacerCambio);
 }
 
 export async function guardarPedido(edicion: unknown): Promise<Resultado> {

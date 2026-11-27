@@ -1,4 +1,4 @@
-import { getSession } from "@/lib/session";
+import { exigirPermiso } from "@/lib/auth/acceso";
 import { listCategorias } from "@/lib/data/admin";
 import {
   Table,
@@ -14,7 +14,7 @@ import { CategoriaDialog } from "./categoria-dialog";
 import { eliminarCategoria } from "./actions";
 
 export default async function CategoriasAdminPage() {
-  const tenant = await getSession();
+  const tenant = await exigirPermiso("administrar");
   const categorias = tenant ? await listCategorias(tenant.id) : [];
 
   return (

@@ -1,4 +1,4 @@
-import { getSession } from "@/lib/session";
+import { exigirPermiso } from "@/lib/auth/acceso";
 import { listZonas } from "@/lib/data/admin";
 import {
   Table,
@@ -15,7 +15,7 @@ import { ZonaDialog } from "./zona-dialog";
 import { setActivoZona, eliminarZona } from "./actions";
 
 export default async function ZonasAdminPage() {
-  const tenant = await getSession();
+  const tenant = await exigirPermiso("administrar");
   const zonas = tenant ? await listZonas(tenant.id) : [];
 
   return (

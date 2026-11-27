@@ -11,12 +11,12 @@ import {
 } from "lucide-react";
 
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getSession } from "@/lib/session";
+import { exigirPermiso } from "@/lib/auth/acceso";
 import { getAdminCounts } from "@/lib/data/admin";
 import { AdminTabs } from "./_components/admin-tabs";
 
 export default async function AdminPage() {
-  const tenant = await getSession();
+  const tenant = await exigirPermiso("administrar");
   const counts = tenant
     ? await getAdminCounts(tenant.id)
     : {
@@ -72,7 +72,7 @@ export default async function AdminPage() {
     {
       href: "/admin/configuracion",
       label: "Configuración",
-      desc: "Nombre, slug y plan del tenant",
+      desc: "Datos de la empresa, marca y plan",
       icon: Settings2,
     },
   ];

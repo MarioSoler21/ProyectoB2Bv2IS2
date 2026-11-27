@@ -15,7 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 
 const NAV: { href: string; label: string; icon: LucideIcon }[] = [
-  { href: "/home", label: "Home", icon: Home },
+  { href: "/home", label: "Inicio", icon: Home },
   { href: "/mis-clientes", label: "Mis clientes", icon: Users },
   { href: "/despacho", label: "Despacho", icon: Truck },
   { href: "/admin", label: "Admin", icon: Settings },
@@ -23,12 +23,14 @@ const NAV: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/descargas", label: "Descargas", icon: Download },
 ];
 
-export function DashboardNav() {
+/** Menú del panel. `permitidas` sale del rol (lib/auth/permisos.ts); Inicio siempre está. */
+export function DashboardNav({ permitidas }: { permitidas: readonly string[] }) {
   const pathname = usePathname();
+  const visibles = NAV.filter((item) => item.href === "/home" || permitidas.includes(item.href));
 
   return (
     <nav className="flex flex-col gap-0.5">
-      {NAV.map((item) => {
+      {visibles.map((item) => {
         const active =
           pathname === item.href || pathname.startsWith(`${item.href}/`);
         const Icon = item.icon;
