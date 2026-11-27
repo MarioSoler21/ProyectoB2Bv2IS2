@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { toBranding, type TenantBranding } from "@/lib/branding";
+import { FAKE_LOGIN_ENABLED } from "@/lib/auth/fake-login";
 
 /**
  * Lecturas para el panel /admin. Server-only, scoped explícitamente por
@@ -151,8 +152,14 @@ export async function getTenant(tenantId: string): Promise<TenantRow | null> {
 export async function getTenantBranding(
   tenantId: string,
 ): Promise<TenantBranding> {
-  const row = await getTenant(tenantId);
-  return toBranding(row);
+  try {
+    const row = await getTenant(tenantId);
+    return toBranding(row);
+  } catch (error) {
+    // Con el login de prueba, el menú se muestra aunque Supabase no responda.
+    if (FAKE_LOGIN_ENABLED) return toBranding(null);
+    throw error;
+  }
 }
 
 /** Contadores para el hub de /admin. */
